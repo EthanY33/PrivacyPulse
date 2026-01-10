@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Help - Cookie Consent Guardian</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 16px;
+    }
+
+    .content {
+      padding: 30px;
+    }
+
+    .section {
+      margin-bottom: 32px;
+    }
+
+    .section h2 {
+      font-size: 20px;
+      color: #333;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #667eea;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section h3 {
+      font-size: 16px;
+      color: #555;
+      margin: 16px 0 8px 0;
+    }
+
+    .section p {
+      color: #666;
+      line-height: 1.7;
+      margin-bottom: 12px;
+    }
+
+    .section ul {
+      margin-left: 24px;
+      color: #666;
+      line-height: 1.8;
+    }
+
+    .section li {
+      margin-bottom: 8px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-top: 16px;
+    }
+
+    .feature-card {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 20px;
+      border-left: 4px solid #667eea;
+    }
+
+    .feature-card h4 {
+      color: #333;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .feature-card p {
+      font-size: 14px;
+      margin: 0;
+    }
+
+    .tip-box {
+      background: #e8f5e9;
+      border-left: 4px solid #4CAF50;
+      padding: 16px;
+      border-radius: 0 8px 8px 0;
+      margin: 16px 0;
+    }
+
+    .tip-box strong {
+      color: #2e7d32;
+    }
+
+    .warning-box {
+      background: #fff3e0;
+      border-left: 4px solid #ff9800;
+      padding: 16px;
+      border-radius: 0 8px 8px 0;
+      margin: 16px 0;
+    }
+
+    .warning-box strong {
+      color: #e65100;
+    }
+
+    .faq-item {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+
+    .faq-item h4 {
+      color: #667eea;
+      margin-bottom: 8px;
+    }
+
+    .faq-item p {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 500;
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: #f0f0ff;
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+
+    .back-link:hover {
+      background: #e0e0ff;
+    }
+
+    .icon {
+      width: 24px;
+      height: 24px;
+    }
+
+    .score-example {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      margin: 12px 0;
+    }
+
+    .score-circle {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: white;
+      font-size: 18px;
+    }
+
+    .score-good { background: #4CAF50; }
+    .score-medium { background: #FFC107; color: #333; }
+    .score-poor { background: #F44336; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 16v-4M12 8h.01"/>
+        </svg>
+        Help Center
+      </h1>
+      <p>Learn how to use Cookie Consent Guardian effectively</p>
+    </div>
+
+    <div class="content">
+      <div class="section">
+        <h2>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+          Getting Started
+        </h2>
+        <p>Cookie Consent Guardian automatically protects your privacy by intercepting cookie consent banners and showing you exactly what data websites want to collect before you agree.</p>
+
+        <div class="feature-grid">
+          <div class="feature-card">
+            <h4>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2">
+                <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+              </svg>
+              Automatic Protection
+            </h4>
+            <p>The extension automatically detects and intercepts cookie banners on websites you visit.</p>
+          </div>
+          <div class="feature-card">
+            <h4>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2">
+                <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              </svg>
+              Privacy Analysis
+            </h4>
+            <p>View detailed breakdowns of cookies, trackers, and data collection practices.</p>
+          </div>
+          <div class="feature-card">
+            <h4>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2">
+                <path d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7c-2 0-3 1-3 3zm0 5h16"/>
+              </svg>
+              Raw Site Data
+            </h4>
+            <p>See all cookies, localStorage, and sessionStorage data in a clean table format.</p>
+          </div>
+          <div class="feature-card">
+            <h4>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2">
+                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              Remember Preferences
+            </h4>
+            <p>Your choices are saved per-site so you don't have to decide every time.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+          Understanding Privacy Scores
+        </h2>
+        <p>Each website receives a privacy score from 0-100 based on its tracking practices:</p>
+
+        <div class="score-example">
+          <div class="score-circle score-good">85</div>
+          <div>
+            <strong>Good Privacy (75-100)</strong>
+            <p style="margin:0;font-size:14px;color:#666">Minimal tracking, mostly essential cookies</p>
+          </div>
+        </div>
+
+        <div class="score-example">
+          <div class="score-circle score-medium">55</div>
+          <div>
+            <strong>Moderate Privacy (50-74)</strong>
+            <p style="margin:0;font-size:14px;color:#666">Some analytics and third-party cookies present</p>
+          </div>
+        </div>
+
+        <div class="score-example">
+          <div class="score-circle score-poor">25</div>
+          <div>
+            <strong>Poor Privacy (0-49)</strong>
+            <p style="margin:0;font-size:14px;color:#666">Heavy tracking, advertising cookies, multiple trackers</p>
+          </div>
+        </div>
+
+        <div class="tip-box">
+          <strong>Tip:</strong> Click "How is this calculated?" in the modal to see exactly what factors affect the score.
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+          </svg>
+          How to Use
+        </h2>
+
+        <h3>Viewing Site Data</h3>
+        <p>Click the extension icon in your browser toolbar, then click "View Site Data" to see a complete privacy analysis of the current website, including:</p>
+        <ul>
+          <li><strong>Privacy Analysis tab:</strong> Cookie categories, trackers, and data collection practices</li>
+          <li><strong>Raw Site Data tab:</strong> All cookies, localStorage, and sessionStorage in table format</li>
+        </ul>
+
+        <h3>When a Cookie Banner Appears</h3>
+        <p>When you click "Accept" on a cookie banner, the extension intercepts and shows you:</p>
+        <ul>
+          <li>The privacy score for the site</li>
+          <li>How many cookies will be set (by category)</li>
+          <li>What trackers are present</li>
+          <li>What data will be collected</li>
+        </ul>
+        <p>You can then choose to:</p>
+        <ul>
+          <li><strong>Reject All:</strong> Block non-essential cookies</li>
+          <li><strong>Customize:</strong> Open the site's cookie settings</li>
+          <li><strong>Accept Anyway:</strong> Proceed with accepting all cookies</li>
+        </ul>
+
+        <h3>Managing Preferences</h3>
+        <ul>
+          <li><strong>Toggle Protection:</strong> Enable/disable the extension from the popup</li>
+          <li><strong>Clear Site Preference:</strong> Reset your saved choice for the current site</li>
+          <li><strong>Clear All Preferences:</strong> Reset all saved choices for all sites</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          FAQ
+        </h2>
+
+        <div class="faq-item">
+          <h4>Why don't I see the warning on some sites?</h4>
+          <p>The extension only intercepts known cookie banner patterns. Some sites use custom implementations that may not be detected. You can still view site data by clicking the extension icon.</p>
+        </div>
+
+        <div class="faq-item">
+          <h4>Does this block all cookies?</h4>
+          <p>No. The extension educates you about cookies but doesn't automatically block them. When you choose "Reject All," it attempts to click the site's reject button or clear non-essential cookies.</p>
+        </div>
+
+        <div class="faq-item">
+          <h4>Why is my preference not remembered?</h4>
+          <p>Preferences are stored locally in your browser. If you clear your browser data or use incognito mode, preferences won't persist.</p>
+        </div>
+
+        <div class="faq-item">
+          <h4>What's the difference between cookies and trackers?</h4>
+          <p>Cookies are small files stored by websites. Trackers are scripts that collect data about your behavior, often using cookies. A site can have cookies without trackers, but most trackers use cookies.</p>
+        </div>
+
+        <div class="faq-item">
+          <h4>Is my data sent anywhere?</h4>
+          <p>No. All analysis happens locally in your browser. The extension doesn't collect or transmit any of your browsing data.</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+          Troubleshooting
+        </h2>
+
+        <div class="warning-box">
+          <strong>Extension not working?</strong> Try reloading the page or restarting Chrome. Some sites require a fresh page load for the extension to detect their cookie banners.
+        </div>
+
+        <ul>
+          <li><strong>Modal not appearing:</strong> The site may use a cookie banner that isn't recognized. Use "View Site Data" from the popup instead.</li>
+          <li><strong>Errors in console:</strong> Try reloading the extension from chrome://extensions and refreshing the page.</li>
+          <li><strong>Stats not updating:</strong> Statistics are saved periodically. They should persist across browser restarts.</li>
+        </ul>
+      </div>
+
+      <a href="popup.html" class="back-link" onclick="window.close(); return false;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Back to Extension
+      </a>
+    </div>
+  </div>
+</body>
+</html>
