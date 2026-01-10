@@ -135,7 +135,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     case 'getSiteCookies':
       if (message.domain) {
-        chrome.cookies.getAll({ domain: message.domain }, (cookies) => {
+        // Get cookies from multiple domain variations to capture all related cookies
+        getSiteCookiesComprehensive(message.domain).then((cookies) => {
           sendResponse({ cookies: cookies });
         });
         return true;
@@ -269,6 +270,59 @@ async function clearAllPreferences() {
       }
     });
   });
+}
+
+async function getSiteCookiesComprehensive(domain) {
+  const allCookies = new Map();
+
+  // Extract base domain (e.g., youtube.com from www.youtube.com)
+  const parts = domain.split('.');
+  const baseDomain = parts.length > 2 ? parts.slice(-2).join('.') : domain;
+
+  // Domain variations to query
+  const domainVariations = [
+    domain,                    // www.youtube.com
+    '.' + domain,              // .www.youtube.com
+    baseDomain,                // youtube.com
+    '.' + baseDomain,          // .youtube.com
+  ];
+
+  // For Google properties, also check google.com
+  const googleDomains = ['youtube.com', 'google.com', 'googleapis.com', 'gstatic.com'];
+  if (googleDomains.some(d => domain.includes(d))) {
+    domainVariations.push('google.com', '.google.com');
+  }
+
+  // Query each domain variation
+  for (const domainVar of domainVariations) {
+    try {
+      const cookies = await chrome.cookies.getAll({ domain: domainVar });
+      cookies.forEach(cookie => {
+        // Use name+domain as unique key to avoid duplicates
+        const key = `${cookie.name}::${cookie.domain}`;
+        if (!allCookies.has(key)) {
+          allCookies.set(key, cookie);
+        }
+      });
+    } catch (e) {
+      // Domain variation might not exist
+    }
+  }
+
+  // Also get cookies by URL for the current page
+  try {
+    const urlCookies = await chrome.cookies.getAll({ url: `https://${domain}` });
+    urlCookies.forEach(cookie => {
+      const key = `${cookie.name}::${cookie.domain}`;
+      if (!allCookies.has(key)) {
+        allCookies.set(key, cookie);
+      }
+    });
+  } catch (e) {
+    // URL query might fail
+  }
+
+  return Array.from(allCookies.values());
 }
 
 async function blockCookieByName(cookieName, domain, url) {

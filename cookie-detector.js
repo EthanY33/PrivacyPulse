@@ -288,16 +288,49 @@ class CookieDetector {
   }
 
   analyzeCookies(providedCookies = null) {
-    let cookies = [];
+    let cookieObjects = [];
+    const currentDomain = window.location.hostname;
+    const currentBaseDomain = this.getBaseDomain(currentDomain);
 
     if (providedCookies) {
       if (Array.isArray(providedCookies)) {
-        cookies = providedCookies.map(c => `${c.name}=${c.value}`);
+        // Chrome API cookie objects - preserve full object
+        cookieObjects = providedCookies.map(c => ({
+          name: c.name,
+          value: c.value,
+          domain: c.domain,
+          path: c.path,
+          secure: c.secure,
+          httpOnly: c.httpOnly,
+          sameSite: c.sameSite,
+          expirationDate: c.expirationDate,
+          description: this.getCookieDescription(c.name)
+        }));
       } else if (typeof providedCookies === 'string') {
-        cookies = providedCookies.split(';').filter(c => c.trim());
+        // String format from document.cookie
+        const cookies = providedCookies.split(';').filter(c => c.trim());
+        cookieObjects = cookies.map(c => {
+          const name = c.split('=')[0].trim();
+          return {
+            name: name,
+            value: c.split('=').slice(1).join('=').trim(),
+            domain: currentDomain,
+            description: this.getCookieDescription(name)
+          };
+        });
       }
     } else {
-      cookies = document.cookie.split(';').filter(c => c.trim());
+      // Fallback to document.cookie
+      const cookies = document.cookie.split(';').filter(c => c.trim());
+      cookieObjects = cookies.map(c => {
+        const name = c.split('=')[0].trim();
+        return {
+          name: name,
+          value: c.split('=').slice(1).join('=').trim(),
+          domain: currentDomain,
+          description: this.getCookieDescription(name)
+        };
+      });
     }
 
     const categories = {
@@ -309,38 +342,52 @@ class CookieDetector {
     };
 
     const patterns = {
-      analytics: ['_ga', '_gid', '_gat', 'analytics', '_hjid', '_clck', '_fbp'],
-      advertising: ['_ads', 'fr', 'IDE', 'test_cookie', 'NID', 'DSID', '_gcl', '_gid', '_gat'],
-      essential: ['session', 'csrf', 'auth', 'login', 'user', 'PHPSESSID', 'JSESSIONID', 'uid', 'id', 'consent', 'preference', 'g_state']
+      analytics: ['_ga', '_gid', '_gat', 'analytics', '_hjid', '_clck', '_fbp', 'VISITOR_INFO', 'YSC'],
+      advertising: ['_ads', 'fr', 'IDE', 'test_cookie', 'NID', 'DSID', '_gcl', 'personalization_id', 'muc_ads', 'GPS'],
+      essential: ['session', 'csrf', 'auth', 'login', 'user', 'PHPSESSID', 'JSESSIONID', 'uid', 'id', 'consent', 'preference', 'g_state', 'PREF', 'SID', 'HSID', 'SSID', 'APISID', 'SAPISID', 'SIDCC', 'CONSENT', 'SEARCH_SAMESITE', '__Secure']
     };
 
-    for (const cookie of cookies) {
-      const name = cookie.split('=')[0].trim();
-      const description = this.getCookieDescription(name);
-      let categorized = false;
+    const thirdPartyDomains = new Set();
 
+    for (const cookie of cookieObjects) {
+      const name = cookie.name;
+      const cookieDomain = (cookie.domain || '').replace(/^\./, ''); // Remove leading dot
+      const cookieBaseDomain = this.getBaseDomain(cookieDomain);
+
+      // Check if this is a third-party cookie (different base domain)
+      const isThirdParty = cookieBaseDomain &&
+                           currentBaseDomain &&
+                           cookieBaseDomain !== currentBaseDomain &&
+                           !this.areRelatedDomains(cookieBaseDomain, currentBaseDomain);
+
+      if (isThirdParty) {
+        categories.thirdParty.push(cookie);
+        thirdPartyDomains.add(cookieDomain);
+        continue; // Third-party cookies don't need further categorization
+      }
+
+      let categorized = false;
       for (const [category, keywords] of Object.entries(patterns)) {
-        if (keywords.some(keyword => name.toLowerCase().includes(keyword))) {
-          categories[category].push({ name, description });
+        if (keywords.some(keyword => name.toLowerCase().includes(keyword.toLowerCase()))) {
+          categories[category].push(cookie);
           categorized = true;
           break;
         }
       }
 
       if (!categorized) {
-        categories.unknown.push({ name, description });
+        categories.unknown.push(cookie);
       }
     }
 
+    // Also detect third-party domains from iframes
     const iframes = document.querySelectorAll('iframe');
-    const thirdPartyDomains = new Set();
-
     iframes.forEach(iframe => {
       try {
         const src = iframe.src;
         if (src) {
           const url = new URL(src);
-          if (url.hostname !== window.location.hostname) {
+          if (url.hostname !== currentDomain) {
             thirdPartyDomains.add(url.hostname);
           }
         }
@@ -349,17 +396,40 @@ class CookieDetector {
     });
 
     return {
-      total: cookies.length,
+      total: cookieObjects.length,
       categories: categories,
       thirdPartyDomains: Array.from(thirdPartyDomains),
       breakdown: {
         essential: categories.essential.length,
         analytics: categories.analytics.length,
         advertising: categories.advertising.length,
-        thirdParty: thirdPartyDomains.size,
+        thirdParty: categories.thirdParty.length,
         unknown: categories.unknown.length
       }
     };
+  }
+
+  getBaseDomain(domain) {
+    if (!domain) return '';
+    const parts = domain.split('.');
+    if (parts.length <= 2) return domain;
+    return parts.slice(-2).join('.');
+  }
+
+  areRelatedDomains(domain1, domain2) {
+    // Check if domains are related (e.g., youtube.com and google.com are related)
+    const relatedGroups = [
+      ['google.com', 'youtube.com', 'googleapis.com', 'gstatic.com', 'googlevideo.com', 'ytimg.com', 'googleusercontent.com'],
+      ['facebook.com', 'fbcdn.net', 'instagram.com'],
+      ['twitter.com', 'twimg.com', 'x.com']
+    ];
+
+    for (const group of relatedGroups) {
+      if (group.includes(domain1) && group.includes(domain2)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   detectTrackers() {

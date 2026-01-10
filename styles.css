@@ -788,6 +788,18 @@
   border-color: #e1bee7;
 }
 
+.ppg-no-companies {
+  padding: 12px 16px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  color: #666;
+  font-size: 14px;
+}
+
+.ppg-no-companies p {
+  margin: 0;
+}
+
 /* Modal Footer */
 .ppg-modal-footer {
   padding: 20px 24px;

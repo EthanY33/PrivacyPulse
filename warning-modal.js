@@ -515,6 +515,14 @@ class WarningModal {
       ...trackers.slice(0, 3).map(t => t.name)
     ])];
 
+    if (allCompanies.length === 0) {
+      return `
+        <div class="ppg-no-companies">
+          <p>No external companies detected receiving your data from this page.</p>
+        </div>
+      `;
+    }
+
     return `
       <div class="ppg-companies-grid">
         ${allCompanies.map(company => `
