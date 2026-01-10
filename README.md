@@ -112,6 +112,6 @@ MIT License - Free to use and modify.
 ---
 
 **Version**: 1.0.2
-**Last Updated**: January 2025
+**Last Updated**: January 10, 2025
 
 Made to promote digital privacy awareness.
