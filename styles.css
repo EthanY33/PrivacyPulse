@@ -530,8 +530,49 @@
 .ppg-cookie-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   margin-bottom: 4px;
+}
+
+.ppg-cookie-header.ppg-expandable {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s ease;
+  margin: -12px -12px 4px -12px;
+  padding: 12px;
+  border-radius: 8px 8px 0 0;
+}
+
+.ppg-cookie-header.ppg-expandable:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.ppg-cookie-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ppg-cookie-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ppg-expand-hint {
+  font-size: 11px;
+  color: #888;
+  font-weight: normal;
+}
+
+.ppg-expand-icon {
+  transition: transform 0.2s ease;
+  color: #666;
+}
+
+.ppg-cookie-header.ppg-expanded .ppg-expand-icon {
+  transform: rotate(180deg);
 }
 
 .ppg-cookie-badge {
@@ -549,6 +590,110 @@
   font-size: 13px;
   color: #666;
   margin: 0;
+}
+
+/* Expandable Cookie Details */
+.ppg-cookie-details {
+  margin-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding-top: 12px;
+}
+
+.ppg-cookie-details-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.ppg-cookie-details-table thead th {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.ppg-cookie-details-table tbody td {
+  padding: 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  vertical-align: top;
+}
+
+.ppg-cookie-detail-row:last-child td {
+  border-bottom: none;
+}
+
+.ppg-detail-name code {
+  background: rgba(102, 126, 234, 0.1);
+  color: #5a67d8;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.ppg-detail-domain .ppg-domain-badge {
+  background: #f0f0f0;
+  color: #666;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.ppg-detail-purpose {
+  color: #555;
+  max-width: 200px;
+  line-height: 1.4;
+}
+
+.ppg-block-cookie-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid #F44336;
+  background: white;
+  color: #F44336;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.ppg-block-cookie-btn:hover {
+  background: #F44336;
+  color: white;
+}
+
+.ppg-block-cookie-btn.ppg-blocked {
+  background: #4CAF50;
+  border-color: #4CAF50;
+  color: white;
+  cursor: default;
+}
+
+.ppg-block-cookie-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.ppg-row-blocked {
+  opacity: 0.6;
+  background: rgba(76, 175, 80, 0.05);
+}
+
+.ppg-row-blocked .ppg-detail-name code {
+  text-decoration: line-through;
+}
+
+.ppg-no-details {
+  text-align: center;
+  color: #999;
+  padding: 12px;
+  font-style: italic;
 }
 
 /* Trackers List */

@@ -150,6 +150,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
       return true;
 
+    case 'blockCookie':
+      if (message.cookieName && message.url) {
+        blockCookieByName(message.cookieName, message.domain, message.url).then((result) => {
+          sendResponse(result);
+        });
+        return true;
+      } else {
+        sendResponse({ success: false, error: 'Missing cookie name or URL' });
+      }
+      break;
+
     default:
       sendResponse({ error: 'Unknown message type' });
   }
@@ -258,6 +269,53 @@ async function clearAllPreferences() {
       }
     });
   });
+}
+
+async function blockCookieByName(cookieName, domain, url) {
+  try {
+    // Get all cookies matching this name and domain
+    const cookieQuery = { name: cookieName };
+    if (domain) {
+      cookieQuery.domain = domain;
+    }
+    const cookies = await chrome.cookies.getAll(cookieQuery);
+
+    let blocked = 0;
+    for (const cookie of cookies) {
+      // Build the URL for cookie removal
+      const protocol = cookie.secure ? 'https://' : 'http://';
+      const cookieUrl = protocol + cookie.domain.replace(/^\./, '') + cookie.path;
+
+      try {
+        await chrome.cookies.remove({
+          url: cookieUrl,
+          name: cookie.name
+        });
+        blocked++;
+        console.log('[Privacy Pulse] Blocked cookie:', cookie.name, 'from', cookie.domain);
+      } catch (e) {
+        console.log('[Privacy Pulse] Could not remove cookie:', cookie.name, e.message);
+      }
+    }
+
+    // Also try with the specific URL provided
+    if (url) {
+      try {
+        await chrome.cookies.remove({
+          url: url,
+          name: cookieName
+        });
+        blocked++;
+      } catch (e) {
+        // Cookie might not exist at this URL
+      }
+    }
+
+    return { success: true, blocked: blocked };
+  } catch (e) {
+    console.error('[Privacy Pulse] Error blocking cookie:', e);
+    return { success: false, error: e.message };
+  }
 }
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {

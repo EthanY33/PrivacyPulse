@@ -432,25 +432,62 @@ class WarningModal {
   renderCookieCategory(name, count, description, color, cookies = []) {
     if (count === 0) return '';
 
-    const cookieListHtml = cookies && cookies.length > 0 
-      ? `<div class="ppg-cookie-list">
-           ${cookies.map(c => `
-             <div class="ppg-cookie-row">
-               <span class="ppg-cookie-name">${c.name}</span>
-               <span class="ppg-cookie-desc">${c.description}</span>
-             </div>
-           `).join('')}
+    const categoryId = `ppg-category-${name.toLowerCase().replace(/[^a-z]/g, '')}`;
+
+    const cookieDetailsHtml = cookies && cookies.length > 0
+      ? `<div class="ppg-cookie-details" id="${categoryId}-details" style="display: none;">
+           <table class="ppg-cookie-details-table">
+             <thead>
+               <tr>
+                 <th>Cookie Name</th>
+                 <th>Domain</th>
+                 <th>Purpose</th>
+                 <th>Action</th>
+               </tr>
+             </thead>
+             <tbody>
+               ${cookies.map(c => `
+                 <tr class="ppg-cookie-detail-row" data-cookie-name="${this.escapeHtml(c.name)}">
+                   <td class="ppg-detail-name">
+                     <code>${this.escapeHtml(c.name)}</code>
+                   </td>
+                   <td class="ppg-detail-domain">
+                     <span class="ppg-domain-badge">${this.escapeHtml(c.domain || window.location.hostname)}</span>
+                   </td>
+                   <td class="ppg-detail-purpose">
+                     ${this.escapeHtml(c.description || 'Unknown purpose')}
+                   </td>
+                   <td class="ppg-detail-action">
+                     <button class="ppg-block-cookie-btn" data-cookie="${this.escapeHtml(c.name)}" data-domain="${this.escapeHtml(c.domain || window.location.hostname)}" title="Block this cookie">
+                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="14" height="14">
+                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                       </svg>
+                       Block
+                     </button>
+                   </td>
+                 </tr>
+               `).join('')}
+             </tbody>
+           </table>
          </div>`
-      : '';
+      : '<div class="ppg-cookie-details ppg-no-details" style="display: none;">No detailed cookie information available</div>';
 
     return `
-      <div class="ppg-cookie-item ppg-${color}">
-        <div class="ppg-cookie-header">
-          <span class="ppg-cookie-badge">${count}</span>
-          <strong>${name}</strong>
+      <div class="ppg-cookie-item ppg-${color}" data-category="${categoryId}">
+        <div class="ppg-cookie-header ppg-expandable" data-target="${categoryId}-details" role="button" tabindex="0" aria-expanded="false">
+          <div class="ppg-cookie-header-left">
+            <span class="ppg-cookie-badge">${count}</span>
+            <strong>${name}</strong>
+          </div>
+          <div class="ppg-cookie-header-right">
+            <span class="ppg-expand-hint">Click to view details</span>
+            <svg class="ppg-expand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" width="16" height="16">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
         </div>
         <p class="ppg-cookie-desc">${description}</p>
-        ${cookieListHtml}
+        ${cookieDetailsHtml}
       </div>
     `;
   }
@@ -587,6 +624,39 @@ class WarningModal {
       });
     });
 
+    // Cookie category expand/collapse
+    const expandableHeaders = this.modal.querySelectorAll('.ppg-expandable');
+    expandableHeaders.forEach(header => {
+      const handleExpand = () => {
+        const targetId = header.getAttribute('data-target');
+        const details = document.getElementById(targetId);
+        if (details) {
+          const isExpanded = header.getAttribute('aria-expanded') === 'true';
+          header.setAttribute('aria-expanded', !isExpanded);
+          details.style.display = isExpanded ? 'none' : 'block';
+          header.classList.toggle('ppg-expanded', !isExpanded);
+        }
+      };
+      header.addEventListener('click', handleExpand);
+      header.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleExpand();
+        }
+      });
+    });
+
+    // Block cookie buttons
+    const blockBtns = this.modal.querySelectorAll('.ppg-block-cookie-btn');
+    blockBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const cookieName = btn.getAttribute('data-cookie');
+        const cookieDomain = btn.getAttribute('data-domain');
+        this.blockCookie(cookieName, cookieDomain, btn);
+      });
+    });
+
     this.modal.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         this.hide();
@@ -626,6 +696,50 @@ class WarningModal {
       this.modal = null;
       this.isVisible = false;
     }, 300);
+  }
+
+  blockCookie(cookieName, cookieDomain, buttonElement) {
+    try {
+      // Delete the cookie by setting it to expire in the past
+      const domain = cookieDomain || window.location.hostname;
+      const paths = ['/', window.location.pathname];
+
+      paths.forEach(path => {
+        // Try different domain variations
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${path};`;
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${path}; domain=${domain};`;
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${path}; domain=.${domain};`;
+      });
+
+      // Also try to remove via Chrome cookies API
+      chrome.runtime.sendMessage({
+        type: 'blockCookie',
+        cookieName: cookieName,
+        domain: domain,
+        url: window.location.href
+      });
+
+      // Update UI to show blocked
+      buttonElement.classList.add('ppg-blocked');
+      buttonElement.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="14" height="14">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+        Blocked
+      `;
+      buttonElement.disabled = true;
+
+      // Mark the row as blocked
+      const row = buttonElement.closest('.ppg-cookie-detail-row');
+      if (row) {
+        row.classList.add('ppg-row-blocked');
+      }
+
+      this.sendAnalytics('cookie_blocked', { cookie: cookieName, domain: domain });
+    } catch (e) {
+      console.error('[Privacy Pulse] Error blocking cookie:', e);
+      buttonElement.textContent = 'Error';
+    }
   }
 
   sendAnalytics(event, data = {}) {
