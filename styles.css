@@ -458,6 +458,49 @@
   padding: 12px !important;
 }
 
+/* Pagination Show More Button */
+.ppg-show-more-row td {
+  text-align: center;
+  padding: 12px !important;
+  background: #f8f9fa;
+}
+
+.ppg-show-more-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ppg-show-more-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.ppg-show-more-btn:active {
+  transform: translateY(0);
+}
+
+/* Blocked row in raw data table */
+.ppg-raw-table tbody tr.ppg-row-blocked {
+  opacity: 0.6;
+  background: rgba(76, 175, 80, 0.05);
+}
+
+.ppg-raw-table tbody tr.ppg-row-blocked .ppg-raw-name {
+  text-decoration: line-through;
+  color: #888;
+}
+
 .ppg-warning-message {
   background: #fff3cd;
   border-left: 4px solid #ffc107;

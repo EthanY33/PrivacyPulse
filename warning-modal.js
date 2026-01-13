@@ -5,6 +5,98 @@ class WarningModal {
     this.onAcceptCallback = null;
     this.onRejectCallback = null;
     this.onCustomizeCallback = null;
+
+    // Pagination settings
+    this.cookiesPerPage = 20;
+    this.currentCookiePage = 0;
+    this.allCookiesForDisplay = [];
+
+    // Port connection for real-time updates
+    this.port = null;
+    this.blockedCookies = new Set();
+
+    // Bind methods
+    this.handlePortMessage = this.handlePortMessage.bind(this);
+  }
+
+  // Connect to background for real-time blocked cookie updates
+  connectToBackground() {
+    try {
+      this.port = chrome.runtime.connect({ name: 'privacy-pulse-ui' });
+      this.port.onMessage.addListener(this.handlePortMessage);
+      this.port.onDisconnect.addListener(() => {
+        this.port = null;
+      });
+
+      // Request current blocked cookies for this domain
+      const currentDomain = window.location.hostname;
+      chrome.runtime.sendMessage({
+        type: 'getBlockedCookies',
+        domain: currentDomain
+      }, (response) => {
+        if (response && response.blockedCookies) {
+          response.blockedCookies.forEach(name => this.blockedCookies.add(name));
+          this.updateBlockedCookiesUI();
+        }
+      });
+    } catch (e) {
+      console.error('[Privacy Pulse] Failed to connect to background:', e);
+    }
+  }
+
+  handlePortMessage(message) {
+    if (message.type === 'cookieBlocked') {
+      // Check if this cookie is for our current domain
+      const currentDomain = window.location.hostname;
+      if (this.domainMatches(message.domain, currentDomain)) {
+        this.blockedCookies.add(message.cookieName);
+        this.updateBlockedCookiesUI();
+      }
+    }
+  }
+
+  domainMatches(cookieDomain, currentDomain) {
+    if (!cookieDomain || !currentDomain) return false;
+    const cleanCookieDomain = cookieDomain.startsWith('.') ? cookieDomain.slice(1) : cookieDomain;
+    return currentDomain === cleanCookieDomain || currentDomain.endsWith('.' + cleanCookieDomain);
+  }
+
+  updateBlockedCookiesUI() {
+    if (!this.modal) return;
+
+    this.blockedCookies.forEach(cookieName => {
+      // Update block buttons
+      const btn = this.modal.querySelector(`.ppg-block-cookie-btn[data-cookie="${CSS.escape(cookieName)}"]`);
+      if (btn && !btn.classList.contains('ppg-blocked')) {
+        btn.classList.add('ppg-blocked');
+        btn.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="14" height="14">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          Blocked
+        `;
+        btn.disabled = true;
+
+        const row = btn.closest('.ppg-cookie-detail-row');
+        if (row) row.classList.add('ppg-row-blocked');
+      }
+
+      // Update raw data table rows
+      const rawRows = this.modal.querySelectorAll(`.ppg-raw-table tbody tr`);
+      rawRows.forEach(row => {
+        const nameCell = row.querySelector('.ppg-raw-name');
+        if (nameCell && nameCell.textContent === cookieName && !row.classList.contains('ppg-row-blocked')) {
+          row.classList.add('ppg-row-blocked');
+        }
+      });
+    });
+  }
+
+  disconnectFromBackground() {
+    if (this.port) {
+      this.port.disconnect();
+      this.port = null;
+    }
   }
 
   collectAllCookies(data) {
@@ -75,15 +167,31 @@ class WarningModal {
       return '<tr><td colspan="5" class="ppg-empty-row">No cookies found</td></tr>';
     }
 
-    return cookies.map(cookie => {
+    // Store all cookies for pagination
+    this.allCookiesForDisplay = cookies;
+    this.currentCookiePage = 0;
+
+    // Render initial batch
+    return this.renderCookieBatch(0);
+  }
+
+  renderCookieBatch(page) {
+    const start = page * this.cookiesPerPage;
+    const end = Math.min(start + this.cookiesPerPage, this.allCookiesForDisplay.length);
+    const batch = this.allCookiesForDisplay.slice(start, end);
+    const hasMore = end < this.allCookiesForDisplay.length;
+    const remaining = this.allCookiesForDisplay.length - end;
+
+    const rows = batch.map(cookie => {
       const name = cookie.name || 'Unknown';
       const value = this.truncateValue(cookie.value || '', 50);
       const domain = cookie.domain || window.location.hostname;
       const expires = this.formatExpiry(cookie.expirationDate || cookie.expires);
       const flags = this.getCookieFlags(cookie);
+      const isBlocked = this.blockedCookies.has(name);
 
       return `
-        <tr>
+        <tr class="${isBlocked ? 'ppg-row-blocked' : ''}" data-cookie-name="${this.escapeHtml(name)}">
           <td class="ppg-raw-name">${this.escapeHtml(name)}</td>
           <td class="ppg-raw-value" title="${this.escapeHtml(cookie.value || '')}">${this.escapeHtml(value)}</td>
           <td class="ppg-raw-domain">${this.escapeHtml(domain)}</td>
@@ -92,6 +200,45 @@ class WarningModal {
         </tr>
       `;
     }).join('');
+
+    // Add "Show More" row if there are more cookies
+    const showMoreRow = hasMore ? `
+      <tr class="ppg-show-more-row">
+        <td colspan="5">
+          <button class="ppg-show-more-btn" data-next-page="${page + 1}">
+            Show ${Math.min(this.cookiesPerPage, remaining)} more cookies (${remaining} remaining)
+          </button>
+        </td>
+      </tr>
+    ` : '';
+
+    return rows + showMoreRow;
+  }
+
+  loadMoreCookies(nextPage) {
+    const tbody = this.modal.querySelector('.ppg-raw-table tbody');
+    if (!tbody) return;
+
+    // Remove the "Show More" row
+    const showMoreRow = tbody.querySelector('.ppg-show-more-row');
+    if (showMoreRow) showMoreRow.remove();
+
+    // Append new batch
+    const newRows = this.renderCookieBatch(nextPage);
+    tbody.insertAdjacentHTML('beforeend', newRows);
+
+    // Re-attach show more listener
+    this.attachShowMoreListener();
+  }
+
+  attachShowMoreListener() {
+    const showMoreBtn = this.modal.querySelector('.ppg-show-more-btn');
+    if (showMoreBtn) {
+      showMoreBtn.addEventListener('click', (e) => {
+        const nextPage = parseInt(e.target.getAttribute('data-next-page'), 10);
+        this.loadMoreCookies(nextPage);
+      });
+    }
   }
 
   renderLocalStorage() {
@@ -155,6 +302,14 @@ class WarningModal {
     this.onRejectCallback = onReject;
     this.onCustomizeCallback = onCustomize;
     this.viewOnly = viewOnly;
+
+    // Reset pagination state
+    this.currentCookiePage = 0;
+    this.allCookiesForDisplay = [];
+    this.blockedCookies.clear();
+
+    // Connect to background for real-time updates
+    this.connectToBackground();
 
     this.createModal(data);
     this.attachEventListeners();
@@ -690,10 +845,19 @@ class WarningModal {
         }
       }
     });
+
+    // Pagination for raw cookies table
+    this.attachShowMoreListener();
+
+    // Update UI with any already-blocked cookies
+    this.updateBlockedCookiesUI();
   }
 
   hide() {
     if (!this.isVisible) return;
+
+    // Disconnect from background
+    this.disconnectFromBackground();
 
     this.modal.classList.remove('ppg-modal-visible');
 
@@ -703,6 +867,10 @@ class WarningModal {
       }
       this.modal = null;
       this.isVisible = false;
+
+      // Clean up state
+      this.allCookiesForDisplay = [];
+      this.currentCookiePage = 0;
     }, 300);
   }
 
@@ -719,13 +887,17 @@ class WarningModal {
         document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${path}; domain=.${domain};`;
       });
 
-      // Also try to remove via Chrome cookies API
+      // Send block request to background script
+      // Background will handle: recording intent, deleting via chrome.cookies API, broadcasting
       chrome.runtime.sendMessage({
         type: 'blockCookie',
         cookieName: cookieName,
         domain: domain,
         url: window.location.href
       });
+
+      // Add to local blocked set for immediate UI feedback
+      this.blockedCookies.add(cookieName);
 
       // Update UI to show blocked
       buttonElement.classList.add('ppg-blocked');
@@ -742,6 +914,10 @@ class WarningModal {
       if (row) {
         row.classList.add('ppg-row-blocked');
       }
+
+      // Also mark in raw data table if visible
+      const rawRows = this.modal.querySelectorAll(`.ppg-raw-table tbody tr[data-cookie-name="${CSS.escape(cookieName)}"]`);
+      rawRows.forEach(rawRow => rawRow.classList.add('ppg-row-blocked'));
 
       this.sendAnalytics('cookie_blocked', { cookie: cookieName, domain: domain });
     } catch (e) {

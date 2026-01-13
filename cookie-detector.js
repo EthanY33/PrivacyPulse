@@ -102,6 +102,23 @@ class CookieDetector {
       ]
     };
 
+    // Known multi-part TLDs for proper domain extraction
+    this.multiPartTLDs = [
+      'co.uk', 'co.jp', 'co.kr', 'co.nz', 'co.za', 'co.in',
+      'com.au', 'com.br', 'com.cn', 'com.mx', 'com.sg',
+      'org.uk', 'net.au', 'gov.uk', 'ac.uk', 'edu.au'
+    ];
+
+    // Related domain groups (same company)
+    this.relatedDomainGroups = [
+      ['google.com', 'youtube.com', 'googleapis.com', 'gstatic.com', 'googlevideo.com', 'ytimg.com', 'googleusercontent.com', 'ggpht.com', 'googleadservices.com'],
+      ['facebook.com', 'fbcdn.net', 'instagram.com', 'fb.com', 'fbsbx.com'],
+      ['twitter.com', 'twimg.com', 'x.com', 't.co'],
+      ['microsoft.com', 'msn.com', 'bing.com', 'live.com', 'outlook.com', 'azure.com'],
+      ['amazon.com', 'amazonaws.com', 'cloudfront.net', 'amazonws.com'],
+      ['apple.com', 'icloud.com', 'cdn-apple.com']
+    ];
+
     this.cookieDescriptions = {
       '_ga': 'Google Analytics: Distinguishes users and measures site usage.',
       '_gid': 'Google Analytics: Distinguishes users (24-hour expiration).',
@@ -117,7 +134,7 @@ class CookieDetector {
       'SIDCC': 'Google: Security cookie to protect against unauthorized access.',
       '1P_JAR': 'Google: Tracks conversion rates and site statistics.',
       'CONSENT': 'Google: Stores cookie consent choices.',
-      'SEARCH_SAMESITE': 'Google: Prevents the browser from sending this cookie with cross-site requests.',
+      'SEARCH_SAMESITE': 'Google: Prevents cross-site request sending.',
       'PREF': 'Google/YouTube: Stores preferences like language and autoplay config.',
       'VISITOR_INFO1_LIVE': 'YouTube: Bandwidth estimation for video playback.',
       'YSC': 'YouTube: Tracks views of embedded videos.',
@@ -127,8 +144,8 @@ class CookieDetector {
       'bcookie': 'LinkedIn: Browser ID cookie for tracking and auth.',
       'lidc': 'LinkedIn: Used for routing and load balancing.',
       'li_gc': 'LinkedIn: Stores consent of guests.',
-      'muc_ads': 'Twitter: Collects data on user behaviour and interaction for ads.',
-      'personalization_id': 'Twitter: Integrates Twitter features and social media sharing.',
+      'muc_ads': 'Twitter: Collects data on user behaviour for ads.',
+      'personalization_id': 'Twitter: Integrates Twitter features and social sharing.',
       'cf_clearance': 'Cloudflare: Proof of challenge passage.',
       '__cf_bm': 'Cloudflare: Bot management and security.',
       'cf_ray': 'Cloudflare: Ray ID for traceability.',
@@ -157,6 +174,55 @@ class CookieDetector {
       'OptanonConsent': 'OneTrust: Consent preferences.',
       'eupubconsent-v2': 'IAB: Transparency & Consent Framework string.'
     };
+
+    // Definite classifications (high confidence)
+    this.definiteCookies = {
+      'PHPSESSID': { category: 'essential', confidence: 'high' },
+      'JSESSIONID': { category: 'essential', confidence: 'high' },
+      'csrftoken': { category: 'essential', confidence: 'high' },
+      'XSRF-TOKEN': { category: 'essential', confidence: 'high' },
+      '_ga': { category: 'analytics', confidence: 'high' },
+      '_gid': { category: 'analytics', confidence: 'high' },
+      '_gat': { category: 'analytics', confidence: 'high' },
+      'IDE': { category: 'advertising', confidence: 'high' },
+      'fr': { category: 'advertising', confidence: 'high' },
+      '_fbp': { category: 'advertising', confidence: 'high' },
+      'NID': { category: 'advertising', confidence: 'high' }
+    };
+
+    // Pattern-based classifications (medium confidence)
+    this.classificationPatterns = {
+      analytics: [
+        { regex: /^_ga_/, confidence: 'medium' },
+        { regex: /^_gat_/, confidence: 'medium' },
+        { regex: /^_hj/, confidence: 'medium' },
+        { regex: /^_pk_/, confidence: 'medium' },
+        { regex: /analytics/i, confidence: 'low' },
+        { regex: /VISITOR_INFO/i, confidence: 'medium' },
+        { regex: /^YSC$/, confidence: 'medium' }
+      ],
+      advertising: [
+        { regex: /_gcl_/, confidence: 'medium' },
+        { regex: /^ads_/, confidence: 'medium' },
+        { regex: /personalization_id/, confidence: 'medium' },
+        { regex: /muc_ads/, confidence: 'medium' },
+        { regex: /^GPS$/, confidence: 'medium' }
+      ],
+      essential: [
+        { regex: /csrf/i, confidence: 'medium' },
+        { regex: /xsrf/i, confidence: 'medium' },
+        { regex: /session/i, confidence: 'low' },
+        { regex: /^auth/i, confidence: 'medium' },
+        { regex: /^login/i, confidence: 'medium' },
+        { regex: /consent/i, confidence: 'medium' },
+        { regex: /^PREF$/, confidence: 'medium' },
+        { regex: /^SID$/, confidence: 'medium' },
+        { regex: /^HSID$/, confidence: 'medium' },
+        { regex: /^SSID$/, confidence: 'medium' },
+        { regex: /^SIDCC$/, confidence: 'medium' },
+        { regex: /^__Secure-/, confidence: 'medium' }
+      ]
+    };
   }
 
   getCookieDescription(name) {
@@ -165,13 +231,18 @@ class CookieDetector {
     }
 
     if (name.startsWith('_ga_')) return 'Google Analytics: Session state for specific property.';
-    if (name.includes('csrf')) return 'Security: Protects against Cross-Site Request Forgery.';
-    if (name.includes('session')) return 'Session: Keeps you logged in or maintains your state.';
+    if (name.includes('csrf') || name.includes('xsrf')) return 'Security: Protects against Cross-Site Request Forgery.';
+    if (name.toLowerCase().includes('session')) return 'Session: Keeps you logged in or maintains your state.';
 
     return 'Purpose unknown or site-specific.';
   }
 
+  // ============ BANNER DETECTION ============
+
   detectBanner() {
+    // Only works in browser context
+    if (typeof document === 'undefined') return null;
+
     for (const [platformName, config] of Object.entries(this.platforms)) {
       const banner = this.findElement(config.selectors);
       if (banner && this.isVisible(banner)) {
@@ -205,6 +276,7 @@ class CookieDetector {
         const element = context.querySelector(selector);
         if (element) return element;
       } catch (e) {
+        // Invalid selector
       }
     }
     return null;
@@ -240,8 +312,7 @@ class CookieDetector {
       }
     }
 
-    const prominentButton = this.findProminentButton(buttons);
-    return prominentButton;
+    return this.findProminentButton(buttons);
   }
 
   findProminentButton(buttons) {
@@ -287,51 +358,31 @@ class CookieDetector {
     );
   }
 
-  analyzeCookies(providedCookies = null) {
-    let cookieObjects = [];
-    const currentDomain = window.location.hostname;
-    const currentBaseDomain = this.getBaseDomain(currentDomain);
+  // ============ COOKIE ANALYSIS ============
 
-    if (providedCookies) {
-      if (Array.isArray(providedCookies)) {
-        // Chrome API cookie objects - preserve full object
-        cookieObjects = providedCookies.map(c => ({
-          name: c.name,
-          value: c.value,
-          domain: c.domain,
-          path: c.path,
-          secure: c.secure,
-          httpOnly: c.httpOnly,
-          sameSite: c.sameSite,
-          expirationDate: c.expirationDate,
-          description: this.getCookieDescription(c.name)
-        }));
-      } else if (typeof providedCookies === 'string') {
-        // String format from document.cookie
-        const cookies = providedCookies.split(';').filter(c => c.trim());
-        cookieObjects = cookies.map(c => {
-          const name = c.split('=')[0].trim();
-          return {
-            name: name,
-            value: c.split('=').slice(1).join('=').trim(),
-            domain: currentDomain,
-            description: this.getCookieDescription(name)
-          };
-        });
-      }
+  /**
+   * Analyze cookies with explicit site context
+   * @param {Array|string|null} providedCookies - Cookies from Chrome API or document.cookie
+   * @param {Object|null} siteContext - Optional site context { hostname: string }
+   */
+  analyzeCookies(providedCookies = null, siteContext = null) {
+    // Determine current domain from context or window
+    let currentDomain, currentBaseDomain;
+
+    if (siteContext && siteContext.hostname) {
+      currentDomain = siteContext.hostname;
+      currentBaseDomain = this.getBaseDomain(currentDomain);
+    } else if (typeof window !== 'undefined' && window.location) {
+      currentDomain = window.location.hostname;
+      currentBaseDomain = this.getBaseDomain(currentDomain);
     } else {
-      // Fallback to document.cookie
-      const cookies = document.cookie.split(';').filter(c => c.trim());
-      cookieObjects = cookies.map(c => {
-        const name = c.split('=')[0].trim();
-        return {
-          name: name,
-          value: c.split('=').slice(1).join('=').trim(),
-          domain: currentDomain,
-          description: this.getCookieDescription(name)
-        };
-      });
+      // No context available - return with all cookies as unknown
+      console.warn('[CookieDetector] No site context available');
+      return this.createEmptyResult(providedCookies);
     }
+
+    // Parse cookies into objects
+    let cookieObjects = this.parseCookies(providedCookies, currentDomain);
 
     const categories = {
       essential: [],
@@ -341,59 +392,43 @@ class CookieDetector {
       unknown: []
     };
 
-    const patterns = {
-      analytics: ['_ga', '_gid', '_gat', 'analytics', '_hjid', '_clck', '_fbp', 'VISITOR_INFO', 'YSC'],
-      advertising: ['_ads', 'fr', 'IDE', 'test_cookie', 'NID', 'DSID', '_gcl', 'personalization_id', 'muc_ads', 'GPS'],
-      essential: ['session', 'csrf', 'auth', 'login', 'user', 'PHPSESSID', 'JSESSIONID', 'uid', 'id', 'consent', 'preference', 'g_state', 'PREF', 'SID', 'HSID', 'SSID', 'APISID', 'SAPISID', 'SIDCC', 'CONSENT', 'SEARCH_SAMESITE', '__Secure']
-    };
-
     const thirdPartyDomains = new Set();
 
+    // Classify each cookie
     for (const cookie of cookieObjects) {
-      const name = cookie.name;
-      const cookieDomain = (cookie.domain || '').replace(/^\./, ''); // Remove leading dot
-      const cookieBaseDomain = this.getBaseDomain(cookieDomain);
+      const classification = this.classifyCookie(cookie, currentDomain, currentBaseDomain);
+      cookie.classification = classification;
 
-      // Check if this is a third-party cookie (different base domain)
-      const isThirdParty = cookieBaseDomain &&
-                           currentBaseDomain &&
-                           cookieBaseDomain !== currentBaseDomain &&
-                           !this.areRelatedDomains(cookieBaseDomain, currentBaseDomain);
-
-      if (isThirdParty) {
+      if (classification.category === 'thirdParty') {
         categories.thirdParty.push(cookie);
-        thirdPartyDomains.add(cookieDomain);
-        continue; // Third-party cookies don't need further categorization
-      }
-
-      let categorized = false;
-      for (const [category, keywords] of Object.entries(patterns)) {
-        if (keywords.some(keyword => name.toLowerCase().includes(keyword.toLowerCase()))) {
-          categories[category].push(cookie);
-          categorized = true;
-          break;
-        }
-      }
-
-      if (!categorized) {
-        categories.unknown.push(cookie);
+        const cookieDomain = (cookie.domain || '').replace(/^\./, '');
+        if (cookieDomain) thirdPartyDomains.add(cookieDomain);
+      } else {
+        categories[classification.category].push(cookie);
       }
     }
 
-    // Also detect third-party domains from iframes
-    const iframes = document.querySelectorAll('iframe');
-    iframes.forEach(iframe => {
+    // Detect third-party domains from iframes (only in browser context)
+    if (typeof document !== 'undefined') {
       try {
-        const src = iframe.src;
-        if (src) {
-          const url = new URL(src);
-          if (url.hostname !== currentDomain) {
-            thirdPartyDomains.add(url.hostname);
+        const iframes = document.querySelectorAll('iframe');
+        iframes.forEach(iframe => {
+          try {
+            const src = iframe.src;
+            if (src) {
+              const url = new URL(src);
+              if (url.hostname !== currentDomain && !this.areRelatedDomains(this.getBaseDomain(url.hostname), currentBaseDomain)) {
+                thirdPartyDomains.add(url.hostname);
+              }
+            }
+          } catch (e) {
+            // Invalid URL
           }
-        }
+        });
       } catch (e) {
+        // Document not available
       }
-    });
+    }
 
     return {
       total: cookieObjects.length,
@@ -409,22 +444,204 @@ class CookieDetector {
     };
   }
 
-  getBaseDomain(domain) {
-    if (!domain) return '';
-    const parts = domain.split('.');
-    if (parts.length <= 2) return domain;
-    return parts.slice(-2).join('.');
+  /**
+   * Parse cookies into normalized objects
+   */
+  parseCookies(providedCookies, defaultDomain) {
+    if (!providedCookies) {
+      // Fallback to document.cookie
+      if (typeof document !== 'undefined' && document.cookie) {
+        const cookies = document.cookie.split(';').filter(c => c.trim());
+        return cookies.map(c => {
+          const name = c.split('=')[0].trim();
+          return {
+            name: name,
+            value: c.split('=').slice(1).join('=').trim(),
+            domain: defaultDomain,
+            description: this.getCookieDescription(name)
+          };
+        });
+      }
+      return [];
+    }
+
+    if (Array.isArray(providedCookies)) {
+      // Chrome API cookie objects
+      return providedCookies.map(c => ({
+        name: c.name,
+        value: c.value,
+        domain: c.domain,
+        path: c.path,
+        secure: c.secure,
+        httpOnly: c.httpOnly,
+        sameSite: c.sameSite,
+        expirationDate: c.expirationDate,
+        session: !c.expirationDate,
+        partitionKey: c.partitionKey,
+        isPartitioned: !!c.partitionKey,
+        description: this.getCookieDescription(c.name)
+      }));
+    }
+
+    if (typeof providedCookies === 'string') {
+      const cookies = providedCookies.split(';').filter(c => c.trim());
+      return cookies.map(c => {
+        const name = c.split('=')[0].trim();
+        return {
+          name: name,
+          value: c.split('=').slice(1).join('=').trim(),
+          domain: defaultDomain,
+          description: this.getCookieDescription(name)
+        };
+      });
+    }
+
+    return [];
   }
 
-  areRelatedDomains(domain1, domain2) {
-    // Check if domains are related (e.g., youtube.com and google.com are related)
-    const relatedGroups = [
-      ['google.com', 'youtube.com', 'googleapis.com', 'gstatic.com', 'googlevideo.com', 'ytimg.com', 'googleusercontent.com'],
-      ['facebook.com', 'fbcdn.net', 'instagram.com'],
-      ['twitter.com', 'twimg.com', 'x.com']
-    ];
+  /**
+   * Classify a single cookie with confidence level
+   */
+  classifyCookie(cookie, currentDomain, currentBaseDomain) {
+    const name = cookie.name || '';
+    const cookieDomain = (cookie.domain || '').replace(/^\./, '');
+    const cookieBaseDomain = this.getBaseDomain(cookieDomain);
 
-    for (const group of relatedGroups) {
+    // Check if third-party first
+    if (cookieDomain && cookieBaseDomain && currentBaseDomain) {
+      const isThirdParty = cookieBaseDomain !== currentBaseDomain &&
+                           !this.areRelatedDomains(cookieBaseDomain, currentBaseDomain);
+      if (isThirdParty) {
+        return {
+          category: 'thirdParty',
+          confidence: 'high',
+          signals: [`Domain ${cookieDomain} differs from site ${currentDomain}`],
+          note: 'Cookie from external domain'
+        };
+      }
+    }
+
+    // Check definite classifications
+    if (this.definiteCookies[name]) {
+      const def = this.definiteCookies[name];
+      return {
+        category: def.category,
+        confidence: def.confidence,
+        signals: [`Known cookie: ${name}`]
+      };
+    }
+
+    // Check pattern-based classifications
+    for (const [category, patterns] of Object.entries(this.classificationPatterns)) {
+      for (const pattern of patterns) {
+        if (pattern.regex.test(name)) {
+          return {
+            category: category,
+            confidence: pattern.confidence,
+            signals: [`Name matches pattern: ${pattern.regex.toString()}`]
+          };
+        }
+      }
+    }
+
+    // Check domain-based classifications
+    const domainCategories = {
+      'doubleclick.net': 'advertising',
+      'googlesyndication.com': 'advertising',
+      'googleadservices.com': 'advertising',
+      'google-analytics.com': 'analytics',
+      'hotjar.com': 'analytics',
+      'clarity.ms': 'analytics'
+    };
+
+    if (domainCategories[cookieBaseDomain]) {
+      return {
+        category: domainCategories[cookieBaseDomain],
+        confidence: 'medium',
+        signals: [`Domain ${cookieBaseDomain} is known ${domainCategories[cookieBaseDomain]} provider`]
+      };
+    }
+
+    // Unknown - provide helpful context
+    const signals = ['No matching patterns found'];
+
+    // Add hints based on cookie properties
+    if (cookie.session) {
+      signals.push('Session cookie (no expiration)');
+    } else if (cookie.expirationDate) {
+      const daysToExpiry = (cookie.expirationDate * 1000 - Date.now()) / (1000 * 60 * 60 * 24);
+      if (daysToExpiry > 365) {
+        signals.push(`Long-lived: expires in ${Math.round(daysToExpiry)} days`);
+      }
+    }
+
+    if (cookie.sameSite === 'none') {
+      signals.push('Cross-site enabled (SameSite=None)');
+    }
+
+    return {
+      category: 'unknown',
+      confidence: 'none',
+      signals: signals,
+      note: 'Purpose could not be determined. May be site-specific.'
+    };
+  }
+
+  /**
+   * Create empty result when no context available
+   */
+  createEmptyResult(cookies) {
+    const cookieObjects = Array.isArray(cookies)
+      ? cookies.map(c => ({ ...c, description: this.getCookieDescription(c.name) }))
+      : [];
+    return {
+      total: cookieObjects.length,
+      categories: { essential: [], analytics: [], advertising: [], thirdParty: [], unknown: cookieObjects },
+      thirdPartyDomains: [],
+      breakdown: { essential: 0, analytics: 0, advertising: 0, thirdParty: 0, unknown: cookieObjects.length }
+    };
+  }
+
+  // ============ DOMAIN UTILITIES ============
+
+  /**
+   * Get base domain with multi-part TLD support
+   */
+  getBaseDomain(domain) {
+    if (!domain) return '';
+
+    domain = domain.replace(/^\./, '');
+
+    // Handle IP addresses
+    if (/^(\d{1,3}\.){3}\d{1,3}$/.test(domain)) {
+      return domain;
+    }
+
+    const parts = domain.split('.');
+
+    // Check for multi-part TLD
+    if (parts.length >= 3) {
+      const lastTwo = parts.slice(-2).join('.');
+      if (this.multiPartTLDs.includes(lastTwo)) {
+        return parts.slice(-3).join('.');
+      }
+    }
+
+    if (parts.length >= 2) {
+      return parts.slice(-2).join('.');
+    }
+
+    return domain;
+  }
+
+  /**
+   * Check if two domains are related (same company)
+   */
+  areRelatedDomains(domain1, domain2) {
+    if (!domain1 || !domain2) return false;
+    if (domain1 === domain2) return true;
+
+    for (const group of this.relatedDomainGroups) {
       if (group.includes(domain1) && group.includes(domain2)) {
         return true;
       }
@@ -432,7 +649,12 @@ class CookieDetector {
     return false;
   }
 
+  // ============ TRACKER DETECTION ============
+
   detectTrackers() {
+    // Only works in browser context
+    if (typeof document === 'undefined') return [];
+
     const trackers = [];
     const scripts = document.querySelectorAll('script[src]');
 
@@ -482,9 +704,16 @@ class CookieDetector {
     return 'other';
   }
 
+  // ============ PRIVACY SCORE ============
+
   calculatePrivacyScore(cookieData, trackers) {
     let score = 100;
     const breakdown = [];
+
+    // Check if we're in a secure context
+    const isHttps = typeof window !== 'undefined' && window.location
+      ? window.location.protocol === 'https:'
+      : true; // Assume secure if can't determine
 
     const analyticsDeduction = Math.min(cookieData.breakdown.analytics * 3, 15);
     if (analyticsDeduction > 0) {
@@ -512,9 +741,9 @@ class CookieDetector {
     if (thirdPartyDeduction > 0) {
       score -= thirdPartyDeduction;
       breakdown.push({
-        factor: 'Third-Party Domains',
+        factor: 'Third-Party Cookies',
         impact: -thirdPartyDeduction,
-        detail: `${cookieData.breakdown.thirdParty} domain(s) × 4 pts (max -20)`,
+        detail: `${cookieData.breakdown.thirdParty} cookie(s) × 4 pts (max -20)`,
         type: 'negative'
       });
     }
@@ -530,7 +759,6 @@ class CookieDetector {
       });
     }
 
-    const isHttps = window.location.protocol === 'https:';
     if (isHttps) {
       score += 5;
       breakdown.push({
