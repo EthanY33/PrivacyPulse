@@ -1,4 +1,3 @@
-// Extension state - will be restored from storage on startup
 let extensionState = {
   isEnabled: true,
   stats: {
@@ -12,18 +11,12 @@ let extensionState = {
   events: []
 };
 
-// Blocked cookies store - persisted to storage
-// Structure: Map<domain, Map<cookieName, { timestamp, incognito }>>
 let blockedCookiesStore = new Map();
 
-// Connected ports for real-time broadcasting
 const connectedPorts = new Set();
-
-// ============ INITIALIZATION ============
 
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
-    console.log('[Privacy Pulse] Extension installed');
     chrome.storage.local.set({
       isEnabled: true,
       stats: {
@@ -36,8 +29,6 @@ chrome.runtime.onInstalled.addListener((details) => {
       },
       blockedCookies: {}
     });
-  } else if (details.reason === 'update') {
-    console.log('[Privacy Pulse] Extension updated to version', chrome.runtime.getManifest().version);
   }
 
   try {
@@ -51,17 +42,13 @@ chrome.runtime.onInstalled.addListener((details) => {
       title: 'Clear Saved Preference for This Site',
       contexts: ['page']
     });
-  } catch (e) {
-    console.log('[Privacy Pulse] Context menus not available:', e.message);
-  }
+  } catch (e) {}
 });
 
 chrome.runtime.onStartup.addListener(async () => {
   await loadExtensionState();
   await loadBlockedCookiesFromStorage();
 });
-
-// ============ STATE PERSISTENCE ============
 
 async function loadExtensionState() {
   return new Promise((resolve) => {
@@ -75,7 +62,6 @@ async function loadExtensionState() {
           sitesProtected: new Set(result.stats.sitesProtected || [])
         };
       }
-      console.log('[Privacy Pulse] State loaded');
       resolve();
     });
   });
@@ -105,7 +91,6 @@ async function loadBlockedCookiesFromStorage() {
           blockedCookiesStore.set(domain, new Map(Object.entries(cookies)));
         }
       }
-      console.log('[Privacy Pulse] Blocked cookies loaded:', blockedCookiesStore.size, 'domains');
       resolve();
     });
   });
@@ -115,7 +100,6 @@ async function persistBlockedCookies() {
   return new Promise((resolve) => {
     const serializable = {};
     for (const [domain, cookies] of blockedCookiesStore) {
-      // Only persist non-incognito blocks
       const nonIncognito = {};
       for (const [name, data] of cookies) {
         if (!data.incognito) {
@@ -130,22 +114,16 @@ async function persistBlockedCookies() {
   });
 }
 
-// ============ PORT-BASED BROADCASTING ============
-
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name === 'privacy-pulse-ui') {
     connectedPorts.add(port);
-    console.log('[Privacy Pulse] UI connected, total:', connectedPorts.size);
-
     port.onDisconnect.addListener(() => {
       connectedPorts.delete(port);
-      console.log('[Privacy Pulse] UI disconnected, total:', connectedPorts.size);
     });
   }
 });
 
 async function broadcastToAllViews(message) {
-  // 1. Send to connected ports (popup, extension pages)
   for (const port of connectedPorts) {
     try {
       port.postMessage(message);
@@ -154,7 +132,6 @@ async function broadcastToAllViews(message) {
     }
   }
 
-  // 2. Send to all content scripts via tabs
   try {
     const tabs = await chrome.tabs.query({});
     for (const tab of tabs) {
@@ -162,16 +139,10 @@ async function broadcastToAllViews(message) {
         chrome.tabs.sendMessage(tab.id, message).catch(() => {});
       }
     }
-  } catch (e) {
-    // Tabs query might fail
-  }
+  } catch (e) {}
 }
 
-// ============ MESSAGE HANDLING ============
-
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('[Privacy Pulse] Message received:', message.type);
-
   switch (message.type) {
     case 'event':
       handleEvent(message, sender);
@@ -273,11 +244,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false;
 });
 
-// ============ COOKIE BLOCKING ============
-
 async function handleBlockCookie(cookieName, domain, url, isIncognito = false) {
   try {
-    // 1. Record user intent FIRST (before deletion)
     if (!blockedCookiesStore.has(domain)) {
       blockedCookiesStore.set(domain, new Map());
     }
@@ -286,15 +254,12 @@ async function handleBlockCookie(cookieName, domain, url, isIncognito = false) {
       incognito: isIncognito
     });
 
-    // 2. Persist (non-incognito only)
     if (!isIncognito) {
       await persistBlockedCookies();
     }
 
-    // 3. Attempt to delete the cookie
     const result = await blockCookieByName(cookieName, domain, url);
 
-    // 4. Broadcast state change to all views
     broadcastToAllViews({
       type: 'cookieBlockStateChanged',
       domain: domain,
@@ -303,13 +268,11 @@ async function handleBlockCookie(cookieName, domain, url, isIncognito = false) {
       success: result.success
     });
 
-    // 5. Update stats
     extensionState.stats.totalRejected++;
     await saveExtensionState();
 
     return result;
   } catch (e) {
-    console.error('[Privacy Pulse] Error in handleBlockCookie:', e);
     return { success: false, error: e.message };
   }
 }
@@ -358,41 +321,28 @@ async function blockCookieByName(cookieName, domain, url) {
           name: cookie.name
         });
         blocked++;
-        console.log('[Privacy Pulse] Removed cookie:', cookie.name, 'from', cookie.domain);
-      } catch (e) {
-        console.log('[Privacy Pulse] Could not remove cookie:', cookie.name, e.message);
-      }
+      } catch (e) {}
     }
 
     if (url) {
       try {
         await chrome.cookies.remove({ url: url, name: cookieName });
         blocked++;
-      } catch (e) {
-        // Cookie might not exist at this URL
-      }
+      } catch (e) {}
     }
 
     return { success: true, blocked: blocked };
   } catch (e) {
-    console.error('[Privacy Pulse] Error blocking cookie:', e);
     return { success: false, error: e.message };
   }
 }
 
-// ============ COOKIE RETRIEVAL ============
-
 async function getSiteCookiesComprehensive(domain, options = {}) {
   const { incognito = false } = options;
   const allCookies = new Map();
-
-  // Determine cookie store ID
   const storeId = incognito ? '1' : '0';
-
-  // Extract base domain properly
   const baseDomain = getBaseDomain(domain);
 
-  // Domain variations to query
   const domainVariations = new Set([
     domain,
     '.' + domain,
@@ -400,18 +350,15 @@ async function getSiteCookiesComprehensive(domain, options = {}) {
     '.' + baseDomain,
   ]);
 
-  // For Google properties, also check google.com
   const googleDomains = ['youtube.com', 'google.com', 'googleapis.com', 'gstatic.com', 'googlevideo.com'];
   if (googleDomains.some(d => baseDomain === d || domain.endsWith('.' + d))) {
     domainVariations.add('google.com');
     domainVariations.add('.google.com');
   }
 
-  // Query each domain variation
   for (const domainVar of domainVariations) {
     try {
       const queryOptions = { domain: domainVar };
-      // Only add storeId if we're sure about incognito
       if (incognito) {
         queryOptions.storeId = storeId;
       }
@@ -422,12 +369,9 @@ async function getSiteCookiesComprehensive(domain, options = {}) {
           allCookies.set(key, cookie);
         }
       });
-    } catch (e) {
-      // Domain variation might not exist or access denied
-    }
+    } catch (e) {}
   }
 
-  // Also get cookies by URL
   try {
     const urlCookies = await chrome.cookies.getAll({ url: `https://${domain}` });
     urlCookies.forEach(cookie => {
@@ -436,25 +380,19 @@ async function getSiteCookiesComprehensive(domain, options = {}) {
         allCookies.set(key, cookie);
       }
     });
-  } catch (e) {
-    // URL query might fail
-  }
+  } catch (e) {}
 
   return Array.from(allCookies.values());
 }
 
-// Helper: Get base domain (handles multi-part TLDs)
 function getBaseDomain(domain) {
   if (!domain) return '';
-
   domain = domain.replace(/^\./, '');
 
-  // Handle IP addresses
   if (/^(\d{1,3}\.){3}\d{1,3}$/.test(domain)) {
     return domain;
   }
 
-  // Known multi-part TLDs
   const multiPartTLDs = [
     'co.uk', 'co.jp', 'co.kr', 'co.nz', 'co.za', 'co.in',
     'com.au', 'com.br', 'com.cn', 'com.mx', 'com.sg',
@@ -476,8 +414,6 @@ function getBaseDomain(domain) {
 
   return domain;
 }
-
-// ============ EVENT HANDLING ============
 
 function handleEvent(message, sender) {
   const event = {
@@ -543,10 +479,7 @@ function handleAnalytics(message, sender) {
   };
 
   extensionState.events.push(event);
-  console.log('[Privacy Pulse] Analytics:', message.event, message.data);
 }
-
-// ============ UI HELPERS ============
 
 function updateBadge(tabId, status) {
   if (!tabId) return;
@@ -565,8 +498,6 @@ function updateBadge(tabId, status) {
   chrome.action.setBadgeBackgroundColor({ color: badge.color, tabId: tabId }).catch(() => {});
 }
 
-// ============ UTILITY FUNCTIONS ============
-
 async function clearAllPreferences() {
   return new Promise((resolve) => {
     chrome.storage.local.get(null, (items) => {
@@ -574,7 +505,6 @@ async function clearAllPreferences() {
 
       if (keysToRemove.length > 0) {
         chrome.storage.local.remove(keysToRemove, () => {
-          console.log('[Privacy Pulse] Cleared', keysToRemove.length, 'preferences');
           resolve();
         });
       } else {
@@ -584,20 +514,16 @@ async function clearAllPreferences() {
   });
 }
 
-// ============ EVENT LISTENERS ============
-
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   if (changeInfo.status === 'loading') {
     chrome.action.setBadgeText({ text: '', tabId: tabId }).catch(() => {});
   }
 });
 
-// Periodic state save
 setInterval(() => {
   saveExtensionState();
 }, 5 * 60 * 1000);
 
-// Context menu handling
 if (chrome.contextMenus) {
   chrome.contextMenus.onClicked.addListener((info, tab) => {
     if (!tab || !tab.id) return;
@@ -610,28 +536,20 @@ if (chrome.contextMenus) {
         chrome.storage.local.remove([`pref_${domain}`], () => {
           chrome.tabs.reload(tab.id).catch(() => {});
         });
-      } catch (e) {
-        // Invalid URL
-      }
+      } catch (e) {}
     }
   });
 }
 
-// Listen for storage changes
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (namespace === 'local') {
     if (changes.isEnabled) {
       extensionState.isEnabled = changes.isEnabled.newValue;
-      console.log('[Privacy Pulse] Enabled state changed:', extensionState.isEnabled);
     }
   }
 });
 
-// ============ STARTUP ============
-
-// Load state immediately on service worker start
 (async () => {
   await loadExtensionState();
   await loadBlockedCookiesFromStorage();
-  console.log('[Privacy Pulse Guardian] Background service worker initialized');
 })();

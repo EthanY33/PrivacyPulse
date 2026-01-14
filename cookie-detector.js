@@ -102,14 +102,12 @@ class CookieDetector {
       ]
     };
 
-    // Known multi-part TLDs for proper domain extraction
     this.multiPartTLDs = [
       'co.uk', 'co.jp', 'co.kr', 'co.nz', 'co.za', 'co.in',
       'com.au', 'com.br', 'com.cn', 'com.mx', 'com.sg',
       'org.uk', 'net.au', 'gov.uk', 'ac.uk', 'edu.au'
     ];
 
-    // Related domain groups (same company)
     this.relatedDomainGroups = [
       ['google.com', 'youtube.com', 'googleapis.com', 'gstatic.com', 'googlevideo.com', 'ytimg.com', 'googleusercontent.com', 'ggpht.com', 'googleadservices.com'],
       ['facebook.com', 'fbcdn.net', 'instagram.com', 'fb.com', 'fbsbx.com'],
@@ -175,7 +173,6 @@ class CookieDetector {
       'eupubconsent-v2': 'IAB: Transparency & Consent Framework string.'
     };
 
-    // Definite classifications (high confidence)
     this.definiteCookies = {
       'PHPSESSID': { category: 'essential', confidence: 'high' },
       'JSESSIONID': { category: 'essential', confidence: 'high' },
@@ -190,7 +187,6 @@ class CookieDetector {
       'NID': { category: 'advertising', confidence: 'high' }
     };
 
-    // Pattern-based classifications (medium confidence)
     this.classificationPatterns = {
       analytics: [
         { regex: /^_ga_/, confidence: 'medium' },
@@ -237,10 +233,7 @@ class CookieDetector {
     return 'Purpose unknown or site-specific.';
   }
 
-  // ============ BANNER DETECTION ============
-
   detectBanner() {
-    // Only works in browser context
     if (typeof document === 'undefined') return null;
 
     for (const [platformName, config] of Object.entries(this.platforms)) {
@@ -275,9 +268,7 @@ class CookieDetector {
       try {
         const element = context.querySelector(selector);
         if (element) return element;
-      } catch (e) {
-        // Invalid selector
-      }
+      } catch (e) {}
     }
     return null;
   }
@@ -358,15 +349,7 @@ class CookieDetector {
     );
   }
 
-  // ============ COOKIE ANALYSIS ============
-
-  /**
-   * Analyze cookies with explicit site context
-   * @param {Array|string|null} providedCookies - Cookies from Chrome API or document.cookie
-   * @param {Object|null} siteContext - Optional site context { hostname: string }
-   */
   analyzeCookies(providedCookies = null, siteContext = null) {
-    // Determine current domain from context or window
     let currentDomain, currentBaseDomain;
 
     if (siteContext && siteContext.hostname) {
@@ -376,12 +359,9 @@ class CookieDetector {
       currentDomain = window.location.hostname;
       currentBaseDomain = this.getBaseDomain(currentDomain);
     } else {
-      // No context available - return with all cookies as unknown
-      console.warn('[CookieDetector] No site context available');
       return this.createEmptyResult(providedCookies);
     }
 
-    // Parse cookies into objects
     let cookieObjects = this.parseCookies(providedCookies, currentDomain);
 
     const categories = {
@@ -394,7 +374,6 @@ class CookieDetector {
 
     const thirdPartyDomains = new Set();
 
-    // Classify each cookie
     for (const cookie of cookieObjects) {
       const classification = this.classifyCookie(cookie, currentDomain, currentBaseDomain);
       cookie.classification = classification;
@@ -408,7 +387,6 @@ class CookieDetector {
       }
     }
 
-    // Detect third-party domains from iframes (only in browser context)
     if (typeof document !== 'undefined') {
       try {
         const iframes = document.querySelectorAll('iframe');
@@ -421,13 +399,9 @@ class CookieDetector {
                 thirdPartyDomains.add(url.hostname);
               }
             }
-          } catch (e) {
-            // Invalid URL
-          }
+          } catch (e) {}
         });
-      } catch (e) {
-        // Document not available
-      }
+      } catch (e) {}
     }
 
     return {
@@ -444,12 +418,8 @@ class CookieDetector {
     };
   }
 
-  /**
-   * Parse cookies into normalized objects
-   */
   parseCookies(providedCookies, defaultDomain) {
     if (!providedCookies) {
-      // Fallback to document.cookie
       if (typeof document !== 'undefined' && document.cookie) {
         const cookies = document.cookie.split(';').filter(c => c.trim());
         return cookies.map(c => {
@@ -466,7 +436,6 @@ class CookieDetector {
     }
 
     if (Array.isArray(providedCookies)) {
-      // Chrome API cookie objects
       return providedCookies.map(c => ({
         name: c.name,
         value: c.value,
@@ -499,15 +468,11 @@ class CookieDetector {
     return [];
   }
 
-  /**
-   * Classify a single cookie with confidence level
-   */
   classifyCookie(cookie, currentDomain, currentBaseDomain) {
     const name = cookie.name || '';
     const cookieDomain = (cookie.domain || '').replace(/^\./, '');
     const cookieBaseDomain = this.getBaseDomain(cookieDomain);
 
-    // Check if third-party first
     if (cookieDomain && cookieBaseDomain && currentBaseDomain) {
       const isThirdParty = cookieBaseDomain !== currentBaseDomain &&
                            !this.areRelatedDomains(cookieBaseDomain, currentBaseDomain);
@@ -521,7 +486,6 @@ class CookieDetector {
       }
     }
 
-    // Check definite classifications
     if (this.definiteCookies[name]) {
       const def = this.definiteCookies[name];
       return {
@@ -531,7 +495,6 @@ class CookieDetector {
       };
     }
 
-    // Check pattern-based classifications
     for (const [category, patterns] of Object.entries(this.classificationPatterns)) {
       for (const pattern of patterns) {
         if (pattern.regex.test(name)) {
@@ -544,7 +507,6 @@ class CookieDetector {
       }
     }
 
-    // Check domain-based classifications
     const domainCategories = {
       'doubleclick.net': 'advertising',
       'googlesyndication.com': 'advertising',
@@ -562,10 +524,8 @@ class CookieDetector {
       };
     }
 
-    // Unknown - provide helpful context
     const signals = ['No matching patterns found'];
 
-    // Add hints based on cookie properties
     if (cookie.session) {
       signals.push('Session cookie (no expiration)');
     } else if (cookie.expirationDate) {
@@ -587,9 +547,6 @@ class CookieDetector {
     };
   }
 
-  /**
-   * Create empty result when no context available
-   */
   createEmptyResult(cookies) {
     const cookieObjects = Array.isArray(cookies)
       ? cookies.map(c => ({ ...c, description: this.getCookieDescription(c.name) }))
@@ -602,24 +559,17 @@ class CookieDetector {
     };
   }
 
-  // ============ DOMAIN UTILITIES ============
-
-  /**
-   * Get base domain with multi-part TLD support
-   */
   getBaseDomain(domain) {
     if (!domain) return '';
 
     domain = domain.replace(/^\./, '');
 
-    // Handle IP addresses
     if (/^(\d{1,3}\.){3}\d{1,3}$/.test(domain)) {
       return domain;
     }
 
     const parts = domain.split('.');
 
-    // Check for multi-part TLD
     if (parts.length >= 3) {
       const lastTwo = parts.slice(-2).join('.');
       if (this.multiPartTLDs.includes(lastTwo)) {
@@ -634,9 +584,6 @@ class CookieDetector {
     return domain;
   }
 
-  /**
-   * Check if two domains are related (same company)
-   */
   areRelatedDomains(domain1, domain2) {
     if (!domain1 || !domain2) return false;
     if (domain1 === domain2) return true;
@@ -649,10 +596,7 @@ class CookieDetector {
     return false;
   }
 
-  // ============ TRACKER DETECTION ============
-
   detectTrackers() {
-    // Only works in browser context
     if (typeof document === 'undefined') return [];
 
     const trackers = [];
@@ -704,16 +648,13 @@ class CookieDetector {
     return 'other';
   }
 
-  // ============ PRIVACY SCORE ============
-
   calculatePrivacyScore(cookieData, trackers) {
     let score = 100;
     const breakdown = [];
 
-    // Check if we're in a secure context
     const isHttps = typeof window !== 'undefined' && window.location
       ? window.location.protocol === 'https:'
-      : true; // Assume secure if can't determine
+      : true;
 
     const analyticsDeduction = Math.min(cookieData.breakdown.analytics * 3, 15);
     if (analyticsDeduction > 0) {

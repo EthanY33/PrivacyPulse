@@ -5,21 +5,14 @@ class WarningModal {
     this.onAcceptCallback = null;
     this.onRejectCallback = null;
     this.onCustomizeCallback = null;
-
-    // Pagination settings
     this.cookiesPerPage = 20;
     this.currentCookiePage = 0;
     this.allCookiesForDisplay = [];
-
-    // Port connection for real-time updates
     this.port = null;
     this.blockedCookies = new Set();
-
-    // Bind methods
     this.handlePortMessage = this.handlePortMessage.bind(this);
   }
 
-  // Connect to background for real-time blocked cookie updates
   connectToBackground() {
     try {
       this.port = chrome.runtime.connect({ name: 'privacy-pulse-ui' });
@@ -28,7 +21,6 @@ class WarningModal {
         this.port = null;
       });
 
-      // Request current blocked cookies for this domain
       const currentDomain = window.location.hostname;
       chrome.runtime.sendMessage({
         type: 'getBlockedCookies',
@@ -39,14 +31,11 @@ class WarningModal {
           this.updateBlockedCookiesUI();
         }
       });
-    } catch (e) {
-      console.error('[Privacy Pulse] Failed to connect to background:', e);
-    }
+    } catch (e) {}
   }
 
   handlePortMessage(message) {
     if (message.type === 'cookieBlocked') {
-      // Check if this cookie is for our current domain
       const currentDomain = window.location.hostname;
       if (this.domainMatches(message.domain, currentDomain)) {
         this.blockedCookies.add(message.cookieName);
@@ -65,7 +54,6 @@ class WarningModal {
     if (!this.modal) return;
 
     this.blockedCookies.forEach(cookieName => {
-      // Update block buttons
       const btn = this.modal.querySelector(`.ppg-block-cookie-btn[data-cookie="${CSS.escape(cookieName)}"]`);
       if (btn && !btn.classList.contains('ppg-blocked')) {
         btn.classList.add('ppg-blocked');
@@ -81,7 +69,6 @@ class WarningModal {
         if (row) row.classList.add('ppg-row-blocked');
       }
 
-      // Update raw data table rows
       const rawRows = this.modal.querySelectorAll(`.ppg-raw-table tbody tr`);
       rawRows.forEach(row => {
         const nameCell = row.querySelector('.ppg-raw-name');
@@ -167,11 +154,9 @@ class WarningModal {
       return '<tr><td colspan="5" class="ppg-empty-row">No cookies found</td></tr>';
     }
 
-    // Store all cookies for pagination
     this.allCookiesForDisplay = cookies;
     this.currentCookiePage = 0;
 
-    // Render initial batch
     return this.renderCookieBatch(0);
   }
 
@@ -201,7 +186,6 @@ class WarningModal {
       `;
     }).join('');
 
-    // Add "Show More" row if there are more cookies
     const showMoreRow = hasMore ? `
       <tr class="ppg-show-more-row">
         <td colspan="5">
@@ -219,15 +203,12 @@ class WarningModal {
     const tbody = this.modal.querySelector('.ppg-raw-table tbody');
     if (!tbody) return;
 
-    // Remove the "Show More" row
     const showMoreRow = tbody.querySelector('.ppg-show-more-row');
     if (showMoreRow) showMoreRow.remove();
 
-    // Append new batch
     const newRows = this.renderCookieBatch(nextPage);
     tbody.insertAdjacentHTML('beforeend', newRows);
 
-    // Re-attach show more listener
     this.attachShowMoreListener();
   }
 
@@ -303,12 +284,10 @@ class WarningModal {
     this.onCustomizeCallback = onCustomize;
     this.viewOnly = viewOnly;
 
-    // Reset pagination state
     this.currentCookiePage = 0;
     this.allCookiesForDisplay = [];
     this.blockedCookies.clear();
 
-    // Connect to background for real-time updates
     this.connectToBackground();
 
     this.createModal(data);
@@ -787,7 +766,6 @@ class WarningModal {
       });
     });
 
-    // Cookie category expand/collapse
     const expandableHeaders = this.modal.querySelectorAll('.ppg-expandable');
     expandableHeaders.forEach(header => {
       const handleExpand = () => {
@@ -809,7 +787,6 @@ class WarningModal {
       });
     });
 
-    // Block cookie buttons
     const blockBtns = this.modal.querySelectorAll('.ppg-block-cookie-btn');
     blockBtns.forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -846,17 +823,13 @@ class WarningModal {
       }
     });
 
-    // Pagination for raw cookies table
     this.attachShowMoreListener();
-
-    // Update UI with any already-blocked cookies
     this.updateBlockedCookiesUI();
   }
 
   hide() {
     if (!this.isVisible) return;
 
-    // Disconnect from background
     this.disconnectFromBackground();
 
     this.modal.classList.remove('ppg-modal-visible');
@@ -868,7 +841,6 @@ class WarningModal {
       this.modal = null;
       this.isVisible = false;
 
-      // Clean up state
       this.allCookiesForDisplay = [];
       this.currentCookiePage = 0;
     }, 300);
@@ -876,19 +848,15 @@ class WarningModal {
 
   blockCookie(cookieName, cookieDomain, buttonElement) {
     try {
-      // Delete the cookie by setting it to expire in the past
       const domain = cookieDomain || window.location.hostname;
       const paths = ['/', window.location.pathname];
 
       paths.forEach(path => {
-        // Try different domain variations
         document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${path};`;
         document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${path}; domain=${domain};`;
         document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${path}; domain=.${domain};`;
       });
 
-      // Send block request to background script
-      // Background will handle: recording intent, deleting via chrome.cookies API, broadcasting
       chrome.runtime.sendMessage({
         type: 'blockCookie',
         cookieName: cookieName,
@@ -896,10 +864,8 @@ class WarningModal {
         url: window.location.href
       });
 
-      // Add to local blocked set for immediate UI feedback
       this.blockedCookies.add(cookieName);
 
-      // Update UI to show blocked
       buttonElement.classList.add('ppg-blocked');
       buttonElement.innerHTML = `
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" width="14" height="14">
@@ -909,19 +875,16 @@ class WarningModal {
       `;
       buttonElement.disabled = true;
 
-      // Mark the row as blocked
       const row = buttonElement.closest('.ppg-cookie-detail-row');
       if (row) {
         row.classList.add('ppg-row-blocked');
       }
 
-      // Also mark in raw data table if visible
       const rawRows = this.modal.querySelectorAll(`.ppg-raw-table tbody tr[data-cookie-name="${CSS.escape(cookieName)}"]`);
       rawRows.forEach(rawRow => rawRow.classList.add('ppg-row-blocked'));
 
       this.sendAnalytics('cookie_blocked', { cookie: cookieName, domain: domain });
     } catch (e) {
-      console.error('[Privacy Pulse] Error blocking cookie:', e);
       buttonElement.textContent = 'Error';
     }
   }
@@ -935,8 +898,7 @@ class WarningModal {
         url: window.location.href,
         timestamp: Date.now()
       });
-    } catch (e) {
-    }
+    } catch (e) {}
   }
 }
 
