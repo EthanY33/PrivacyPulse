@@ -2,7 +2,7 @@
 
 A privacy-focused Chrome extension that intercepts cookie consent banners and shows you exactly what you're agreeing to before you click "Accept All."
 
-![Version](https://img.shields.io/badge/version-1.1.0-blue)
+![Version](https://img.shields.io/badge/version-1.1.1-blue)
 ![Chrome](https://img.shields.io/badge/Chrome-Manifest%20V3-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 

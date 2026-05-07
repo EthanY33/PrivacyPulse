@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Cookie Consent Guardian",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Educates users about cookie consent banners and helps make informed privacy decisions",
   "permissions": [
     "storage",
