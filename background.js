@@ -153,6 +153,12 @@ chrome.runtime.onConnect.addListener((port) => {
 });
 
 async function broadcastToAllViews(message) {
+  // Modal/UI views subscribe via chrome.runtime.connect (warning-modal.js
+  // line 18) and receive port messages here. The previous tabs.query +
+  // sendMessage broadcast was inert (content.js does not handle
+  // `cookieBlockStateChanged`) but leaked the user's per-domain block
+  // preferences to every open tab's content script — including pages on
+  // unrelated origins. Scope the broadcast to the existing port set only.
   for (const port of connectedPorts) {
     try {
       port.postMessage(message);
@@ -160,15 +166,6 @@ async function broadcastToAllViews(message) {
       connectedPorts.delete(port);
     }
   }
-
-  try {
-    const tabs = await chrome.tabs.query({});
-    for (const tab of tabs) {
-      if (tab.id && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
-        chrome.tabs.sendMessage(tab.id, message).catch(() => {});
-      }
-    }
-  } catch (e) {}
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
