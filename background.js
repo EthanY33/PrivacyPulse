@@ -1,3 +1,32 @@
+// Names of message types that operate on cookie data. When a content script
+// sends one of these, the requested `domain` must be related to the page's
+// own host (same domain, parent, or subdomain). This stops a content script
+// running on attacker.com from asking the service worker for cookies of an
+// unrelated origin like github.com — including HttpOnly cookies that the page
+// itself could not read via document.cookie.
+const COOKIE_OPS = new Set([
+  'getSiteCookies',
+  'getBlockedCookies',
+  'isBlockedCookie',
+  'blockCookie',
+  'unblockCookie',
+]);
+
+// Approximate "same registrable domain" check without pulling in a Public
+// Suffix List dependency. Allows exact match, parent, and subdomain in either
+// direction. www. is normalised. Good enough for common gTLDs; intentionally
+// strict-by-default for anything ambiguous.
+function isRelatedDomain(messageDomain, tabHost) {
+  if (typeof messageDomain !== 'string' || typeof tabHost !== 'string') return false;
+  if (!messageDomain || !tabHost) return false;
+  const md = messageDomain.toLowerCase().replace(/^\./, '').replace(/^www\./, '');
+  const th = tabHost.toLowerCase().replace(/^www\./, '');
+  if (md === th) return true;
+  if (md.endsWith('.' + th)) return true;
+  if (th.endsWith('.' + md)) return true;
+  return false;
+}
+
 let extensionState = {
   isEnabled: true,
   stats: {
@@ -143,6 +172,27 @@ async function broadcastToAllViews(message) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Reject any message whose claimed origin isn't this extension. MV3's
+  // default externally_connectable already blocks web pages, but other
+  // installed extensions can call chrome.runtime.sendMessage with our ID;
+  // this stops them from reaching any handler below.
+  if (sender.id !== chrome.runtime.id) {
+    sendResponse({ error: 'unauthorized sender' });
+    return false;
+  }
+
+  // For cookie operations from a content script, require the requested
+  // domain to be related to the page's own host. Popup/options pages have
+  // no sender.tab and are trusted (they're our own UI).
+  if (COOKIE_OPS.has(message.type) && sender.tab) {
+    let tabHost = null;
+    try { tabHost = new URL(sender.tab.url).hostname; } catch { /* unparseable */ }
+    if (!isRelatedDomain(message.domain, tabHost)) {
+      sendResponse({ error: 'cross-origin cookie request blocked' });
+      return false;
+    }
+  }
+
   switch (message.type) {
     case 'event':
       handleEvent(message, sender);
