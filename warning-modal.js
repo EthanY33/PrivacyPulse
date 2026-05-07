@@ -611,7 +611,7 @@ class WarningModal {
         <div class="ppg-cookie-header ppg-expandable" data-target="${categoryId}-details" role="button" tabindex="0" aria-expanded="false">
           <div class="ppg-cookie-header-left">
             <span class="ppg-cookie-badge">${count}</span>
-            <strong>${name}</strong>
+            <strong>${this.escapeHtml(name)}</strong>
           </div>
           <div class="ppg-cookie-header-right">
             <span class="ppg-expand-hint">Click to view details</span>
@@ -620,7 +620,7 @@ class WarningModal {
             </svg>
           </div>
         </div>
-        <p class="ppg-cookie-desc">${description}</p>
+        <p class="ppg-cookie-desc">${this.escapeHtml(description)}</p>
         ${cookieDetailsHtml}
       </div>
     `;
@@ -633,9 +633,9 @@ class WarningModal {
     return `
       <div class="ppg-tracker-grid">
         ${grouped.map(tracker => `
-          <div class="ppg-tracker-item" title="${tracker.domain}">
-            <span class="ppg-tracker-icon ppg-tracker-${tracker.type}"></span>
-            <span class="ppg-tracker-name">${tracker.name}</span>
+          <div class="ppg-tracker-item" title="${this.escapeHtml(tracker.domain || '')}">
+            <span class="ppg-tracker-icon ppg-tracker-${this.escapeHtml(tracker.type || '')}"></span>
+            <span class="ppg-tracker-name">${this.escapeHtml(tracker.name || '')}</span>
           </div>
         `).join('')}
         ${remaining > 0 ? `<div class="ppg-tracker-item ppg-tracker-more">+${remaining} more</div>` : ''}
@@ -660,7 +660,7 @@ class WarningModal {
     return `
       <div class="ppg-companies-grid">
         ${allCompanies.map(company => `
-          <div class="ppg-company-chip">${this.formatCompanyName(company)}</div>
+          <div class="ppg-company-chip">${this.escapeHtml(this.formatCompanyName(company))}</div>
         `).join('')}
         ${domains.length > 5 ? `<div class="ppg-company-chip ppg-company-more">+${domains.length - 5} more</div>` : ''}
       </div>
