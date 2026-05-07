@@ -315,20 +315,45 @@
     return null;
   }
 
+  // Curated list of cookie names that legitimate sites use for sessions,
+  // CSRF, or auth. Substring matching ('session' is in 'tracking_session')
+  // both leaks tracking cookies through and wipes real session cookies
+  // whose names don't happen to contain any of the patterns (e.g. 'sid'
+  // by itself, 'connect.sid', 'asp.net_sessionid').
+  const ESSENTIAL_COOKIE_NAMES = new Set([
+    // Session IDs across common stacks
+    'sid', 'sessionid', 'session_id', 'sess',
+    'phpsessid', 'jsessionid', 'aspxauth', 'asp.net_sessionid',
+    'connect.sid', 'express.sid', 'laravel_session',
+    'wordpress_logged_in', 'wp-settings', 'wp-settings-time',
+    // CSRF tokens
+    'csrf-token', 'csrftoken', '_csrf', 'xsrf-token', 'x-csrf-token', '_token',
+    // Auth tokens (browser-readable variants — HttpOnly cookies aren't visible
+    // here anyway, so JS-readable tokens are what we care about)
+    'auth_token', 'authentication_token', 'access_token', 'id_token',
+    'remember_token', 'remember_me',
+    // Login state markers
+    'logged_in', 'is_authenticated',
+    // User identifier
+    'user_id', 'uid',
+  ]);
+
+  function isEssentialCookieName(name) {
+    if (!name) return false;
+    if (ESSENTIAL_COOKIE_NAMES.has(name.toLowerCase())) return true;
+    // RFC 6265bis cookie-prefix spec — sites use these to mark cookies as
+    // bound to a secure scheme or origin, almost always for auth/session.
+    if (name.startsWith('__Secure-') || name.startsWith('__Host-')) return true;
+    return false;
+  }
+
   function clearNonEssentialCookies() {
     const cookies = document.cookie.split(';');
-    const essentialPatterns = ['session', 'csrf', 'auth', 'login', 'user'];
-
     for (const cookie of cookies) {
       const name = cookie.split('=')[0].trim();
-      const isEssential = essentialPatterns.some(pattern =>
-        name.toLowerCase().includes(pattern)
-      );
-
-      if (!isEssential) {
-        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname};`;
-      }
+      if (isEssentialCookieName(name)) continue;
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname};`;
     }
 
     console.log('[Privacy Pulse] Non-essential cookies cleared');
