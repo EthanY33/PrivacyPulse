@@ -462,7 +462,19 @@ function getBaseDomain(domain) {
   return domain;
 }
 
+// Cap on the in-memory event log. Reduced from 1000 to 200 because the log
+// is a debug/inspection aid surfaced via the getEvents handler, not a
+// permanent record. A smaller buffer means fewer URLs to leak if the
+// service-worker memory is ever dumped (heap snapshot, devtools, etc.).
+const MAX_EVENT_LOG_ENTRIES = 200;
+
 function handleEvent(message, sender) {
+  // Skip incognito sessions entirely. Counters in extensionState.stats are
+  // also incremented from this path, which is fine — those are aggregate
+  // numbers without per-domain attribution. The disk-persisted events array
+  // is the privacy-sensitive part.
+  if (sender.tab?.incognito) return;
+
   const event = {
     type: message.event,
     data: message.data,
@@ -473,8 +485,8 @@ function handleEvent(message, sender) {
 
   extensionState.events.push(event);
 
-  if (extensionState.events.length > 1000) {
-    extensionState.events = extensionState.events.slice(-1000);
+  if (extensionState.events.length > MAX_EVENT_LOG_ENTRIES) {
+    extensionState.events = extensionState.events.slice(-MAX_EVENT_LOG_ENTRIES);
   }
 
   let domain;
@@ -516,6 +528,8 @@ function handleEvent(message, sender) {
 }
 
 function handleAnalytics(message, sender) {
+  if (sender.tab?.incognito) return;
+
   const event = {
     type: 'analytics',
     event: message.event,
@@ -526,6 +540,10 @@ function handleAnalytics(message, sender) {
   };
 
   extensionState.events.push(event);
+
+  if (extensionState.events.length > MAX_EVENT_LOG_ENTRIES) {
+    extensionState.events = extensionState.events.slice(-MAX_EVENT_LOG_ENTRIES);
+  }
 }
 
 function updateBadge(tabId, status) {
