@@ -47,7 +47,7 @@ Just browse normally. When you visit a site with a cookie banner and click "Acce
 
 ### View any site's data
 
-Click the extension icon in your toolbar, then click **View Site Data** to see a complete privacy analysis of the site you are on. You can also right-click any page and choose **Analyze Privacy on This Page** from the context menu.
+Click the extension icon in your toolbar, then click **View On-Device Data** to see a complete privacy analysis of the site you are on. You can also right-click any page and choose **Analyze Privacy on This Page** from the context menu.
 
 ### Your options
 
@@ -110,7 +110,7 @@ A: No. It educates you about cookies and lets you reject non-essential ones when
 A: No. All analysis happens locally in your browser. Nothing is sent anywhere.
 
 **Q: Why doesn't it work on some sites?**
-A: Some sites use custom cookie banners that are not detected. You can still use **View Site Data** to see what is on the page.
+A: Some sites use custom cookie banners that are not detected. You can still use **View On-Device Data** to see what is on the page.
 
 ## Permissions Explained
 
