@@ -6,7 +6,7 @@ A privacy-focused Chrome extension that intercepts cookie consent banners and sh
 
 ![Version](https://img.shields.io/badge/version-1.1.1-blue)
 ![Chrome](https://img.shields.io/badge/Chrome-Manifest%20V3-green)
-![License](https://img.shields.io/badge/license-Source%20Available-lightgrey)
+![License](https://img.shields.io/badge/license-MIT-blue)
 
 ## What It Does
 
@@ -135,7 +135,7 @@ Having issues? [Open an issue](https://github.com/EthanY33/PrivacyPulse/issues) 
 
 ## License
 
-This project is **source available**, not open source. See [LICENSE](LICENSE) for the full terms. The code is provided for viewing and educational purposes only; copying, modifying, distributing, creating derivative works, and commercial use are not permitted without prior written permission from the copyright holder.
+This project is licensed under the MIT License. See [LICENSE](LICENSE).
 
 ---
 
